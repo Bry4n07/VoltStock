@@ -1,0 +1,11 @@
+# Entorno virtual de Python
+venv/
+__pycache__/
+*.pyc
+
+# Librerías de Node (Frontend)
+frontend/node_modules/
+frontend/dist/
+
+# Archivos de Mac
+.DS_Store
