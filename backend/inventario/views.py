@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Categoria, Componente
-from .serializers import CategoriaSerializer, ComponenteSerializer
+from .models import Categoria, Componente, Pedido, Devolucion
+from .serializers import CategoriaSerializer, ComponenteSerializer, PedidoSerializer, DevolucionSerializer
+from collections import deque
 
 # Create your views here.
 @api_view(['GET', 'POST'])
@@ -76,3 +77,43 @@ def detalle_componente(request, id):
     elif request.method == 'DELETE':
         componente_db.delete()
         return Response(status=204)
+    
+
+@api_view(['GET','POST','DELETE'])
+def gestion_pedidos(request):
+    if request.method == 'GET':
+        pedidos = Pedido.objects.all().order_by('fecha_solicitud')
+        cola = deque(pedidos)
+        serializer = PedidoSerializer(cola, many=True)
+        return Response(serializer.data, status=200)
+    elif request.method == 'POST':
+        serializer = PedidoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status = 400)
+    elif request.method == 'DELETE':
+        primer_pedido = Pedido.objects.all().order_by('fecha_solicitud').first()
+        if primer_pedido:
+            primer_pedido.delete()
+            return Response({"Pedido atendido"}, status = 204)
+        return Response({"Error": "Cola vacia"},status=404)
+    
+@api_view(['GET','POST','DELETE'])
+def gestion_devoluciones(request):
+    if request.method == 'GET':
+        devoluciones = Devolucion.objects.all().order_by('-fecha_devolucion')
+        serializer = DevolucionSerializer(devoluciones, many=True)
+        return Response(request.data, status=200)
+    elif request.method == 'POST':
+        serializer = DevolucionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+    if request.method == 'DELETE':
+        ultima_devolucion = Devolucion.objects.all().order_by('fecha_devolucion').first()
+        if ultima_devolucion:
+            ultima_devolucion.delete()
+            return Response({"Componente devuelto"}, status=204)
+        return Response({"Error": "Pila Vacia"},status=404)
