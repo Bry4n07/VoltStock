@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { 
   UserIcon, 
   LockClosedIcon, 
@@ -10,8 +11,16 @@ import {
   ArrowRightIcon,
   CpuChipIcon,
   ShieldCheckIcon,
-  CircleStackIcon
+  CircleStackIcon,
+  CheckCircleIcon // <-- IMPORTANTE: Para el Toast
 } from '@heroicons/vue/24/outline'
+
+// 1. IMPORTAMOS TU SISTEMA GLOBAL DE TOASTS
+import { useToast } from '../composables/useToast'
+
+const router = useRouter()
+// 2. Extraemos las variables del Toast para que el Login pueda escucharlas
+const { toastShow, toastMessage, toastType } = useToast()
 
 const form = reactive({
   username: '',
@@ -33,8 +42,43 @@ const handleLogin = async () => {
   errorMsg.value = ''
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1800))
-    errorMsg.value = 'Acceso denegado. Usuario o contraseña incorrectos.'
+    const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: form.username,
+        password: form.password
+      })
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      localStorage.setItem('access', data.access)
+      localStorage.setItem('refresh', data.refresh)
+      localStorage.setItem('username', form.username)
+
+      try {
+        const payloadBase64 = data.access.split('.')[1]
+        const payload = JSON.parse(atob(payloadBase64)) 
+        
+        localStorage.setItem('is_staff', payload.is_staff ? 'true' : 'false')
+        localStorage.setItem('is_superuser', payload.is_superuser ? 'true' : 'false')
+      } catch (e) {
+        console.warn("No se pudo decodificar el rol del token", e)
+      }
+
+      router.push('/inventario')
+      
+    } else {
+      // Usamos tu error interno con animación shake para fallos de credenciales
+      errorMsg.value = 'Acceso denegado. Usuario o contraseña incorrectos.'
+    }
+  } catch (error) {
+    console.error('Error de red:', error)
+    errorMsg.value = 'Error de conexión. Verifica que el servidor esté activo.'
   } finally {
     isLoading.value = false
   }
@@ -42,7 +86,7 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen w-full flex bg-white font-sans text-slate-600 selection:bg-indigo-100 selection:text-indigo-700 overflow-hidden">
+  <div class="min-h-screen w-full flex bg-white font-sans text-slate-600 selection:bg-indigo-100 selection:text-indigo-700 overflow-hidden relative">
     
     <div class="hidden lg:flex lg:w-[45%] relative items-center justify-center bg-white border-r border-slate-100">
       <div class="relative z-10 max-w-md px-12">
@@ -189,6 +233,30 @@ const handleLogin = async () => {
         </div>
       </div>
     </div>
+
+    <transition 
+        enter-active-class="transform ease-out duration-300 transition"
+        enter-from-class="-translate-y-4 opacity-0 sm:translate-x-4"
+        enter-to-class="translate-y-0 opacity-100 sm:translate-x-0"
+        leave-active-class="transition ease-in duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0">
+        <div v-if="toastShow" class="fixed top-6 right-6 z-[999] pointer-events-none w-full max-w-sm">
+            <div class="pointer-events-auto bg-white shadow-2xl rounded-2xl p-4 border" :class="toastType === 'success' ? 'border-emerald-100' : 'border-red-100'">
+                <div class="flex items-start gap-3">
+                    <div class="shrink-0">
+                        <CheckCircleIcon v-if="toastType === 'success'" class="w-6 h-6 text-emerald-500" />
+                        <ExclamationCircleIcon v-else class="w-6 h-6 text-red-500" />
+                    </div>
+                    <div class="flex-1 pt-0.5">
+                        <p class="text-sm font-bold text-slate-800">{{ toastType === 'success' ? 'Éxito' : 'Atención' }}</p>
+                        <p class="mt-1 text-sm text-slate-500 leading-snug">{{ toastMessage }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
   </div>
 </template>
 

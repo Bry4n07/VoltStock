@@ -4,6 +4,8 @@ import ColaPedidosView from '../views/ColaPedidosView.vue'
 import PilaRetornosView from '../views/PilaRetornosView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import DashboardView from '../views/DashboardView.vue'
+import ReportesView from '../views/ReportesView.vue'
 
 const routes = [
     {
@@ -15,6 +17,11 @@ const routes = [
         path: '/register',
         name: 'register',
         component: RegisterView
+    },
+    {
+        path: '/dashboard',
+        name: 'dashboard',
+        component: DashboardView
     },
     {
         path: '/',
@@ -34,6 +41,11 @@ const routes = [
         path: '/pila',
         name: 'pila',
         component: PilaRetornosView
+    },
+    {
+        path: '/reportes',
+        name: 'reportes',
+        component: ReportesView
     }
 ]
 

@@ -1,19 +1,40 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
+from rest_framework.views import APIView
+from rest_framework import status
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework import generics
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from .models import Categoria, Componente, Pedido, Devolucion
-from .serializers import CategoriaSerializer, ComponenteSerializer, PedidoSerializer, DevolucionSerializer, UserSerializer
+from .serializers import CategoriaSerializer, ComponenteSerializer, PedidoSerializer, DevolucionSerializer, UserSerializer, ChangePasswordSerializer
 from collections import deque
 
 # Create your views here.
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
-    permission_classes = (AllowAny,)
     serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        serializer = ChangePasswordSerializer(data=request.data)
+
+        if serializer.is_valid():
+            if not user.check_password(serializer.data.get("old_password")):
+                return Response(
+                    {"old_password": ["La contraseña actual es incorrecta."]}, 
+                    status=400
+                )
+            user.set_password(serializer.data.get("new_password"))
+            user.save()
+            return Response ({"detail": "¡Contraseña actualizada con éxito!"}, status=status.HTTP_200_OK)
+            
+        return Response(serializer.errors, status=400)
 
 @api_view(['GET', 'POST'])
 def lista_categorias(request):
