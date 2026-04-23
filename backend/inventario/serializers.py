@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.models import User
-from .models import Categoria, Componente, Pedido, Devolucion
+from .models import Categoria, Componente, Pedido, Devolucion, HistorialMovimiento
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -9,12 +9,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'password', 'first_name', 'is_staff']
         extra_kwargs = { 'password': {'write_only': True}}
 
-    def create(serlf, valiated_data):
+    def create(self, validated_data):
         user = User.objects.create_user(
-                username=valiated_data['username'],
-                password=valiated_data['password'],
-                first_name=valiated_data.get('first_name', ''),
-                is_staff=valiated_data.get('is_staff', False)
+                username=validated_data['username'],
+                password=validated_data['password'],
+                first_name=validated_data.get('first_name', ''),
+                is_staff=validated_data.get('is_staff', False)
         )
         return user
 
@@ -49,4 +49,9 @@ class PedidoSerializer(serializers.ModelSerializer):
 class DevolucionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Devolucion
+        fields = '__all__'
+
+class HistorialMovimientoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistorialMovimiento
         fields = '__all__'

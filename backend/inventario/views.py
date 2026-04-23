@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework import generics
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from .models import Categoria, Componente, Pedido, Devolucion
-from .serializers import CategoriaSerializer, ComponenteSerializer, PedidoSerializer, DevolucionSerializer, UserSerializer, ChangePasswordSerializer
+from .models import Categoria, Componente, Pedido, Devolucion, HistorialMovimiento
+from .serializers import CategoriaSerializer, ComponenteSerializer, PedidoSerializer, DevolucionSerializer, UserSerializer, ChangePasswordSerializer, HistorialMovimientoSerializer
 from collections import deque
 
 # Create your views here.
@@ -113,37 +113,99 @@ def detalle_componente(request, id):
 def gestion_pedidos(request):
     if request.method == 'GET':
         pedidos = Pedido.objects.all().order_by('fecha_solicitud')
-        cola = deque(pedidos)
-        serializer = PedidoSerializer(cola, many=True)
+        serializer = PedidoSerializer(pedidos, many=True)
         return Response(serializer.data, status=200)
+        
     elif request.method == 'POST':
         serializer = PedidoSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=201)
-        return Response(serializer.errors, status = 400)
+        return Response(serializer.errors, status=400)
+    
     elif request.method == 'DELETE':
+        # NUEVO: Lógica para CANCELAR un pedido sin alterar el stock
+        cancelar_id = request.data.get('cancelar_id')
+        if cancelar_id:
+            try:
+                pedido = Pedido.objects.get(id=cancelar_id)
+                pedido.delete()
+                return Response({"mensaje": "Pedido cancelado y eliminado de la cola"}, status=200)
+            except Pedido.DoesNotExist:
+                return Response({"error": "No encontrado"}, status=404)
+
+        # LÓGICA ORIGINAL FIFO (Despachar el primero y restar stock)
         primer_pedido = Pedido.objects.all().order_by('fecha_solicitud').first()
         if primer_pedido:
-            primer_pedido.delete()
-            return Response({"Pedido atendido"}, status = 204)
-        return Response({"Error": "Cola vacia"},status=404)
+            componente = primer_pedido.componente
+            cantidad_a_restar = getattr(primer_pedido, 'cantidad', 1) 
+            
+            if componente.stock >= cantidad_a_restar:
+                # Guardar auditoría
+                HistorialMovimiento.objects.create(
+                    componente_nombre=componente.nombre,
+                    usuario_nombre=request.user.get_full_name() or request.user.username,
+                    cantidad=cantidad_a_restar,
+                    tipo='SALIDA'
+                )
+                
+                componente.stock -= cantidad_a_restar
+                componente.save()
+                primer_pedido.delete()
+                return Response({"mensaje": "Pedido despachado y stock actualizado"}, status=204)
+            else:
+                return Response({"error": "Stock insuficiente para despachar este pedido"}, status=400)
+                
+        return Response({"error": "La cola está vacía"}, status=404)
     
 @api_view(['GET','POST','DELETE'])
 def gestion_devoluciones(request):
     if request.method == 'GET':
         devoluciones = Devolucion.objects.all().order_by('-fecha_devolucion')
         serializer = DevolucionSerializer(devoluciones, many=True)
-        return Response(request.data, status=200)
+        return Response(serializer.data, status=200)
+        
     elif request.method == 'POST':
         serializer = DevolucionSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
-    if request.method == 'DELETE':
-        ultima_devolucion = Devolucion.objects.all().order_by('fecha_devolucion').first()
+        
+    elif request.method == 'DELETE':
+        # NUEVO: Si el frontend manda un ID específico para CANCELAR
+        cancelar_id = request.data.get('cancelar_id')
+        if cancelar_id:
+            try:
+                dev = Devolucion.objects.get(id=cancelar_id)
+                dev.delete()
+                return Response({"mensaje": "Retorno eliminado de la pila"}, status=200)
+            except Devolucion.DoesNotExist:
+                return Response({"error": "No encontrado"}, status=404)
+
+        # LÓGICA ORIGINAL LIFO (Si no hay cancelar_id, procesa la cima y suma el stock)
+        ultima_devolucion = Devolucion.objects.all().order_by('-fecha_devolucion').first()
         if ultima_devolucion:
+            componente = ultima_devolucion.componente
+            cantidad_a_sumar = getattr(ultima_devolucion, 'cantidad', 1)
+            
+            # Guardar en historial
+            HistorialMovimiento.objects.create(
+                componente_nombre=componente.nombre,
+                usuario_nombre=request.user.get_full_name() or request.user.username,
+                cantidad=cantidad_a_sumar,
+                tipo='ENTRADA'
+            )
+            
+            componente.stock += cantidad_a_sumar
+            componente.save()
             ultima_devolucion.delete()
-            return Response({"Componente devuelto"}, status=204)
-        return Response({"Error": "Pila Vacia"},status=404)
+            return Response({"mensaje": "Reingresado con éxito"}, status=204)
+            
+        return Response({"error": "La pila está vacía"}, status=404)
+    
+@api_view(['GET'])
+def obtener_historial(request):
+    movimientos = HistorialMovimiento.objects.all().order_by('-fecha')
+    serializer = HistorialMovimientoSerializer(movimientos, many=True)
+    return Response(serializer.data)
