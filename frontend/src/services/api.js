@@ -1,38 +1,39 @@
-import router from '../router'
+import { ref } from 'vue'
+// Si usas vue-router importarlo para redireccionar
+import router from '../router' 
 
-const BASE_URL = 'http://127.0.0.1:8000/api'
+// Esta variable se puede leer desde CUALQUIER archivo Vue
+export const isLoadingGlobal = ref(false)
 
 export const api = async (endpoint, options = {}) => {
-    const token = localStorage.getItem('access')
-
-    const defaultHeaders = {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
+  isLoadingGlobal.value = true // Encendemos el loader
+  
+  const token = localStorage.getItem('token') // O donde guardes tu token
+  
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options.headers
     }
+  }
 
-    const config = {
-        ...options,
-        headers: {
-            ...defaultHeaders,
-            ...options.headers
-        }
+  try {
+    // Cambia la URL por la de tu backend de Django
+    const response = await fetch(`http://localhost:8000/api/${endpoint}`, config)
+    
+    // SI EL TOKEN ESTÁ VENCIDO O ES INVÁLIDO
+    if (response.status === 401) {
+      localStorage.removeItem('token')
+      // router.push('/login') // Redirigir al login
+      throw new Error('Sesión expirada')
     }
-
-    try {
-        const response = await fetch(`${BASE_URL}/${endpoint}`, config)
-
-        if (response.status === 401) {
-            localStorage.removeItem('access')
-
-            if (router.currentRoute.value.name !== 'login') {
-                window.location.href = '/login'
-            }
-            return Promise.reject('Sesión expirada')
-        }
-
-        return response
-    } catch (error) {
-        console.error('Error en la petición:', error)
-        throw error
-    }
+    
+    return response
+  } catch (error) {
+    throw error
+  } finally {
+    isLoadingGlobal.value = false // Apagamos el loader pase lo que pase
+  }
 }

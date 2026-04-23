@@ -55,6 +55,7 @@ const manejarReingreso = () => {
 </script>
 
 <template>
+  
   <div v-if="esRutaAutenticacion">
     <router-view />
   </div>
@@ -71,5 +72,8 @@ const manejarReingreso = () => {
         @reingresar="manejarReingreso" 
       />
     </router-view>
+    
   </MainLayout>
+  
 </template>
+  

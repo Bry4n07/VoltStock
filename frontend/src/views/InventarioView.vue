@@ -10,7 +10,7 @@ import {
   XMarkIcon, ArrowDownTrayIcon, ArrowUpOnSquareIcon,
   FunnelIcon, AdjustmentsHorizontalIcon,
   CpuChipIcon, CheckBadgeIcon, ExclamationCircleIcon,
-  PencilSquareIcon, TrashIcon
+  PencilSquareIcon, TrashIcon, MapPinIcon
 } from '@heroicons/vue/24/outline'
 
 // --- ESTADO ---
@@ -37,7 +37,7 @@ const paginaActual = ref(1)
 const itemsPorPagina = 8
 const { showToast } = useToast()
 
-const nuevoProducto = ref({ id: null, nombre: '', descripcion: '', stock: 0, categoria: '' })
+const nuevoProducto = ref({ id: null, nombre: '', descripcion: '', stock: 0, categoria: '', codigo_interno: '', ubicacion: '' })
 const nuevaCatForm = ref({ nombre: '' })
 
 // --- COMPUTED ---
@@ -187,21 +187,44 @@ const ejecutarEliminacion = async () => {
 // --- EMISIONES PARA LA COLA Y PILA ---
 const emit = defineEmits(['solicitar', 'devolver'])
 
-const confirmarTransaccion = () => {
-  const payload = {
-    componente: itemSeleccionado.value,
-    cantidad: cantidadTransaccion.value
-  }
+const confirmarTransaccion = async () => {
+  try {
+    if (tipoTransaccion.value === 'extraer') {
+      const res = await api('pedidos/', {
+        method: 'POST',
+        body: JSON.stringify({
+          componente: itemSeleccionado.value.id,
+          cantidad: cantidadTransaccion.value
+        })
+      })
+      
+      if (res.ok) {
+        showToast("Pedido agregado a la cola", "success")
+      } else {
+        showToast("Error al crear el pedido", "error")
+      }
 
-  if (tipoTransaccion.value === 'extraer') {
-    emit('solicitar', payload)
-    showToast("Pedido agregado a la cola", "success")
-  } else {
-    emit('devolver', payload)
-    showToast("Devolución agregada a la pila", "success")
+    } else {
+      const res = await api('devoluciones/', {
+        method: 'POST',
+        body: JSON.stringify({
+          componente: itemSeleccionado.value.id,
+          cantidad: cantidadTransaccion.value,
+          motivo: 'Devolución desde inventario'
+        })
+      })
+
+      if (res.ok) {
+        showToast("Devolución agregada a la pila", "success")
+      } else {
+        showToast("Error al crear la devolución", "error")
+      }
+    }
+  } catch (err) {
+    if (err !== 'Sesión expirada') showToast("Error de conexión", "error")
+  } finally {
+    cerrarModalTransaccion()
   }
-  
-  cerrarModalTransaccion()
 }
 
 onMounted(() => {
@@ -314,8 +337,9 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
             <tbody class="divide-y divide-slate-50">
               <tr v-for="item in componentesPaginados" :key="item.id" class="hover:bg-slate-50/50 transition-colors group">
                 <td class="px-6 py-4 align-middle">
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md text-xs font-mono font-bold">
-                    <TagIcon class="w-3 h-3" /> {{ item.id.toString().padStart(4, '0') }}
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md text-[11px] whitespace-nowrap font-mono font-bold">
+                    <TagIcon class="w-3 h-3" /> 
+                    {{ item.codigo_interno || 'ID-' + item.id.toString().padStart(4, '0') }}
                   </span>
                 </td>
                 <td class="px-6 py-4 align-middle">
@@ -326,6 +350,7 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
                     <div>
                       <p class="font-bold text-slate-800 text-sm">{{ item.nombre }}</p>
                       <p class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{{ item.descripcion || 'Sin descripción.' }}</p>
+                      <p v-if="item.ubicacion" class="text-[10px] text-indigo-500 font-bold mt-1 flex items-center gap-1"><MapPinIcon class="w-3 h-3" /> {{ item.ubicacion }}</p>
                     </div>
                   </div>
                 </td>
@@ -367,7 +392,7 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
 
         <div class="lg:hidden p-4 bg-slate-50/50 flex flex-col gap-3.5 relative z-10">
           <div v-for="item in componentesPaginados" :key="item.id" 
-               class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col gap-3">
+              class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col gap-3">
             <div :class="['absolute left-0 top-0 bottom-0 w-1', item.stock > 10 ? 'bg-emerald-400' : item.stock > 0 ? 'bg-amber-400' : 'bg-red-400']"></div>
             <div class="flex items-start justify-between gap-3 pl-1">
               <div class="flex items-start gap-3 flex-1 min-w-0">
@@ -380,8 +405,7 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
                     </div>
                   </div>
                   <p class="text-[11px] text-slate-500 mb-2 line-clamp-2 leading-tight">{{ item.descripcion || 'Sin descripción técnica registrada.' }}</p>
-
-                  <span class="inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono"><TagIcon class="w-3 h-3" /> ID-{{ item.id.toString().padStart(4, '0') }}</span>
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md text-xs font-mono font-bold"><TagIcon class="w-3 h-3" /> {{ item.codigo_interno || 'ID-' + item.id.toString().padStart(4, '0') }}</span>
                 </div>
               </div>
             </div>
@@ -433,6 +457,16 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
                 <input v-model="nuevoProducto.descripcion" type="text" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none focus:border-indigo-300" />
               </div>
               <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Código Interno (SKU)</label>
+                <input v-model="nuevoProducto.codigo_interno" type="text" placeholder="Ej: RES-001" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none focus:border-indigo-300" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Ubicación Física</label>
+                <input v-model="nuevoProducto.ubicacion" type="text" placeholder="Ej: Estante A" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none focus:border-indigo-300" />
+              </div>
+            </div>
+              <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Stock Inicial</label>
                   <input v-model="nuevoProducto.stock" type="number" min="0" :disabled="tipoFormulario === 'editar_componente'" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none disabled:opacity-50" />
@@ -471,7 +505,7 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
         <div class="bg-white w-full max-w-sm rounded-[24px] shadow-2xl overflow-hidden p-6 text-center">
           
           <div class="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4"
-               :class="tipoTransaccion === 'extraer' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'">
+              :class="tipoTransaccion === 'extraer' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'">
             <ArrowUpOnSquareIcon v-if="tipoTransaccion === 'extraer'" class="w-8 h-8" />
             <ArrowDownTrayIcon v-else class="w-8 h-8" />
           </div>
