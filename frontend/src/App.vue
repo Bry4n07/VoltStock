@@ -6,8 +6,7 @@ import MainLayout from './layouts/MainLayout.vue'
 
 const route = useRoute()
 
-// --- 1. LÓGICA DE RUTAS (LA QUE FALTABA) ---
-// Esta variable es la que decide si se muestra el Sidebar o no
+// Logica de Rutas
 const esRutaAutenticacion = computed(() => {
   return route.path === '/login'
 })
@@ -16,14 +15,15 @@ const tituloFormateado = computed(() => {
   if (route.name == 'inventario') return 'Inventario Global'
   if (route.name == 'cola') return 'Cola de Despacho'
   if (route.name == 'pila') return 'Pila de Retornos'
+  if (route.name == 'reportes') return 'Reportes'
+  if (route.name == 'register') return 'Registro de personal'
   return 'VoltStock'
 })
 
-// --- 2. ESTADO GLOBAL ---
+// Estado Global
 const colaPedidos = ref([])
 const pilaDevoluciones = ref([])
 
-// --- 3. TUS FUNCIONES DE SIEMPRE ---
 const manejarSolicitud = (componente) => {
   colaPedidos.value.push({
     id_temporal: Date.now(),

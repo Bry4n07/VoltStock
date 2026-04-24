@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
+import { ref, onMounted, onUnmounted, reactive, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { api } from '../services/api'
 import {
     Bars3Icon, CubeIcon, InboxArrowDownIcon,
     Cog6ToothIcon, ArrowRightOnRectangleIcon, BoltIcon,
@@ -17,58 +18,61 @@ const route = useRoute()
 const { toastShow, toastMessage, toastType, showToast } = useToast()
 
 defineProps({ titulo: String })
-
-const sidebarColapsado = ref(false)
+const sidebarColapsado = ref(localStorage.getItem('sidebar_estado') === 'true')
 const sidebarMobileAbierto = ref(false)
 const menuUsuarioAbierto = ref(false)
-
 const modalAjustesAbierto = ref(false)
 const showPassword = ref(false)
 const pwdForm = reactive({ actual: '', nueva: '', confirmar: '' })
 
+// Estado de Sesión y Roles
 const isAuthenticated = ref(false)
-const username = ref('Usuario')
-const isSuperUser = ref(false)
-const isStaff = ref(false)
+const username = ref('Cargando...')
+const rolUsuario = ref('auditor')
+// Formateador visual del rol para el perfil
+const nombreRolVisual = computed(() => {
+    if (rolUsuario.value === 'admin') return 'Administrador'
+    if (rolUsuario.value === 'tecnico') return 'Técnico de Laboratorio'
+    return 'Auditor (Lectura)'
+})
 
 watch(() => route.path, () => { sidebarMobileAbierto.value = false })
 
 const handleKeydown = (e) => {
     if (e.key === 'Escape' && modalAjustesAbierto.value) {
-        const elementoActivo = document.activeElement
-        if (elementoActivo.tagName === 'INPUT' || elementoActivo.tagName === 'TEXTAREA') {
-            elementoActivo.blur()
-        } else {
-            cerrarModal()
-        }
+        cerrarModal()
     }
 }
 
-const rolUsuario = ref(localStorage.getItem('user_rol') || 'auditor') // Auditor por defecto si falla algo
+//Sidebar
+watch(sidebarColapsado, (nuevoEstado) => {
+    localStorage.setItem('sidebar_estado', nuevoEstado)
+})
 
-// Lista de navegación con lógica de permisos de 3 roles
-const navegacion = [
-    { nombre: 'Dashboard', ruta: '/dashboard', icono: HomeIcon, mostrar: true },
-    { nombre: 'Inventario', ruta: '/inventario', icono: ArchiveBoxIcon, mostrar: true }, // Todos ven el inventario
+const cargarPerfilUsuario = async () => {
+    try {
+        const res = await api('auth/me/')
+        if (res.ok) {
+            const data = await res.json()
+            username.value = data.first_name || data.username || 'Usuario'
+            rolUsuario.value = data.rol || 'auditor'
 
-    // La Cola y Pila la ven los Técnicos y el Admin
-    { nombre: 'Cola Despacho', ruta: '/cola', icono: QueueListIcon, mostrar: rolUsuario.value === 'admin' || rolUsuario.value === 'tecnico' },
-    { nombre: 'Pila Retornos', ruta: '/pila', icono: Square3Stack3DIcon, mostrar: rolUsuario.value === 'admin' || rolUsuario.value === 'tecnico' },
-
-    { nombre: 'Reportes', ruta: '/reportes', icono: ChartBarIcon, mostrar: true }, // Todos ven reportes
-
-    // Solo el Admin registra usuarios
-    { nombre: 'Registrar Staff', ruta: '/register', icono: UserPlusIcon, mostrar: rolUsuario.value === 'admin' },
-]
+            localStorage.setItem('user_rol', rolUsuario.value)
+            localStorage.setItem('user_name', username.value)
+        }
+    } catch (error) {
+        console.error("Error al sincronizar el perfil.")
+    }
+}
 
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown)
     const token = localStorage.getItem('access')
     if (token) {
         isAuthenticated.value = true
-        username.value = localStorage.getItem('username') || 'Usuario'
-        isSuperUser.value = localStorage.getItem('is_superuser') === 'true'
-        isStaff.value = localStorage.getItem('is_staff') === 'true'
+        username.value = localStorage.getItem('user_name') || 'Usuario'
+        rolUsuario.value = localStorage.getItem('user_rol') || 'auditor'
+        cargarPerfilUsuario() 
     } else {
         router.push('/login')
     }
@@ -104,39 +108,26 @@ const cambiarPassword = async () => {
     }
 
     const token = localStorage.getItem('access');
-    if (!token) {
-        cerrarSesion("Sesión caducada.");
-        return;
-    }
+    if (!token) return cerrarSesion("Sesión caducada.");
 
     try {
         const response = await fetch('http://127.0.0.1:8000/api/auth/change-password/', {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                old_password: pwdForm.actual,
-                new_password: pwdForm.nueva
-            })
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ old_password: pwdForm.actual, new_password: pwdForm.nueva })
         });
 
-        if (response.status === 401) {
-            cerrarSesion("Tu sesión expiró. Inicia sesión de nuevo.");
-            return;
-        }
-
-        const data = await response.json();
+        if (response.status === 401) return cerrarSesion("Tu sesión expiró.");
 
         if (response.ok) {
-            showToast("¡Contraseña actualizada exitosamente!", "success");
+            showToast("¡Contraseña actualizada!", "success");
             cerrarModal();
         } else {
+            const data = await response.json();
             showToast(data.old_password ? data.old_password[0] : "Error al actualizar.", "error");
         }
     } catch (error) {
-        showToast("Error de conexión con el servidor.", "error");
+        showToast("Error de conexión.", "error");
     }
 }
 </script>
@@ -171,6 +162,7 @@ const cambiarPassword = async () => {
             </div>
 
             <nav class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar">
+                
                 <router-link to="/dashboard"
                     :class="['w-full rounded-lg transition-all duration-200 flex items-center gap-3.5 text-sm font-semibold group', sidebarColapsado ? 'justify-center p-3' : 'px-4 py-3']"
                     class="text-slate-500 hover:bg-slate-50 hover:text-slate-700"
@@ -178,30 +170,31 @@ const cambiarPassword = async () => {
                     <ChartBarIcon class="w-5 h-5 transition-colors" />
                     <span v-show="!sidebarColapsado" class="whitespace-nowrap">Dashboard</span>
                 </router-link>
+                
                 <router-link to="/inventario"
                     :class="['w-full rounded-lg transition-all duration-200 flex items-center gap-3.5 text-sm font-semibold group', sidebarColapsado && !sidebarMobileAbierto ? 'justify-center p-3' : 'px-4 py-3']"
                     class="text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                     active-class="!text-indigo-700 !bg-indigo-50/80 shadow-sm ring-1 ring-indigo-100">
                     <CubeIcon class="w-5 h-5" />
-                    <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Inventario
-                        Global</span>
+                    <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Inventario Global</span>
                 </router-link>
-                <router-link to="/cola"
+
+                <router-link v-if="rolUsuario === 'admin' || rolUsuario === 'tecnico'" to="/cola"
                     :class="['w-full rounded-lg transition-all duration-200 flex items-center gap-3.5 text-sm font-semibold group', sidebarColapsado && !sidebarMobileAbierto ? 'justify-center p-3' : 'px-4 py-3']"
                     class="text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                     active-class="!text-indigo-700 !bg-indigo-50/80 shadow-sm ring-1 ring-indigo-100">
                     <InboxArrowDownIcon class="w-5 h-5" />
-                    <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Cola de
-                        Despacho</span>
+                    <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Cola de Despacho</span>
                 </router-link>
-                <router-link to="/pila"
+
+                <router-link v-if="rolUsuario === 'admin' || rolUsuario === 'tecnico'" to="/pila"
                     :class="['w-full rounded-lg transition-all duration-200 flex items-center gap-3.5 text-sm font-semibold group', sidebarColapsado && !sidebarMobileAbierto ? 'justify-center p-3' : 'px-4 py-3']"
                     class="text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                    active-class="!text-amber-700 !bg-amber-50/80 shadow-sm ring-1 ring-amber-100">
+                    active-class="!text-indigo-700 !bg-indigo-50/80 shadow-sm ring-1 ring-indigo-100">
                     <ArrowUturnUpIcon class="w-5 h-5" />
-                    <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Pila de
-                        Retornos</span>
+                    <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Pila de Retornos</span>
                 </router-link>
+
                 <router-link to="/reportes"
                     :class="['w-full rounded-lg transition-all duration-200 flex items-center gap-3.5 text-sm font-semibold group', sidebarColapsado ? 'justify-center p-3' : 'px-4 py-3']"
                     class="text-slate-500 hover:bg-slate-50 hover:text-slate-700"
@@ -210,7 +203,7 @@ const cambiarPassword = async () => {
                     <span v-show="!sidebarColapsado" class="whitespace-nowrap">Reportes</span>
                 </router-link>
 
-                <div v-if="isSuperUser">
+                <div v-if="rolUsuario === 'admin'">
                     <div v-show="!sidebarColapsado || sidebarMobileAbierto"
                         class="mt-8 mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         Administración</div>
@@ -219,8 +212,7 @@ const cambiarPassword = async () => {
                         class="text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                         active-class="!text-indigo-700 !bg-indigo-50/80 shadow-sm ring-1 ring-indigo-100">
                         <UserPlusIcon class="w-5 h-5" />
-                        <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Alta de
-                            Personal</span>
+                        <span v-show="!sidebarColapsado || sidebarMobileAbierto" class="whitespace-nowrap">Alta de Personal</span>
                     </router-link>
                 </div>
             </nav>
@@ -233,8 +225,7 @@ const cambiarPassword = async () => {
                         {{ username.charAt(0) }}</div>
                     <div class="flex flex-col flex-1 overflow-hidden">
                         <span class="text-sm font-bold text-slate-800 leading-none truncate">{{ username }}</span>
-                        <span class="text-[11px] text-slate-500 font-medium mt-1 truncate">{{ isSuperUser ?
-                            'Administrador' : 'Encargado' }}</span>
+                        <span class="text-[10px] text-slate-500 font-bold mt-1 truncate">{{ nombreRolVisual }}</span>
                     </div>
                     <button @click="menuUsuarioAbierto = !menuUsuarioAbierto"
                         class="p-1.5 rounded-md text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-all">
@@ -338,10 +329,9 @@ const cambiarPassword = async () => {
                                     {{ username.charAt(0) }}</div>
                                 <div>
                                     <div class="font-bold text-slate-800 text-lg leading-tight">{{ username }}</div>
-                                    <div class="text-xs font-semibold flex items-center gap-1 mt-1"
-                                        :class="isSuperUser ? 'text-rose-500' : 'text-indigo-500'">
-                                        <ShieldCheckIcon class="w-4 h-4" /> {{ isSuperUser ? 'Nivel: Administrador' :
-                                            'Nivel: Encargado' }}
+                                    <div class="text-[11px] font-black uppercase tracking-wider flex items-center gap-1 mt-1"
+                                        :class="rolUsuario === 'admin' ? 'text-rose-500' : rolUsuario === 'tecnico' ? 'text-emerald-500' : 'text-indigo-500'">
+                                        <ShieldCheckIcon class="w-4 h-4" /> {{ nombreRolVisual }}
                                     </div>
                                 </div>
                             </div>
@@ -434,8 +424,7 @@ const cambiarPassword = async () => {
                             <ExclamationCircleIcon v-else class="w-6 h-6 text-red-500" />
                         </div>
                         <div class="flex-1 pt-0.5">
-                            <p class="text-sm font-bold text-slate-800">{{ toastType === 'success' ? 'Éxito' : 'Atención'
-                                }}</p>
+                            <p class="text-sm font-bold text-slate-800">{{ toastType === 'success' ? 'Éxito' : 'Atención' }}</p>
                             <p class="mt-1 text-sm text-slate-500 leading-snug">{{ toastMessage }}</p>
                         </div>
                     </div>

@@ -15,7 +15,6 @@ const props = defineProps({
 
 const emit = defineEmits(['cambiarPagina'])
 
-// LÓGICA CORREGIDA: Empezamos a contar desde la página 1
 const paginas = computed(() => {
   let pags = []
   for (let i = 1; i <= props.totalPaginas; i++) {
@@ -24,7 +23,6 @@ const paginas = computed(() => {
   return pags
 })
 
-// FUNCIÓN FALTANTE AGREGADA
 const irAnterior = () => {
   if (props.paginaActual > 1) emit('cambiarPagina', props.paginaActual - 1)
 }

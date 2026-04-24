@@ -17,20 +17,15 @@ const cargando = ref(true)
 const procesando = ref(false)
 const mostrarPanel = ref(false)
 const { showToast } = useToast()
-
-// Estado Modal Eliminación
 const modalEliminar = ref({ mostrar: false, id: null })
-
-// --- PANEL DE CREACIÓN RÁPIDA ---
+// Panel de creación rapida
 const busquedaComponente = ref('')
 const componenteSeleccionado = ref(null)
 const cantidadAPedir = ref(1)
-
-// --- Paginación COLA ---
+// Paginacion Cola
 const paginaCola = ref(1)
 const itemsPorPaginaCola = 6
-
-// --- Paginación PANEL ---
+// Paginación panel
 const paginaPanel = ref(1)
 const itemsPorPaginaPanel = 5
 
@@ -50,7 +45,7 @@ const cargarDatos = async () => {
   }
 }
 
-// --- LÓGICA FIFO (Cola) ---
+// Logica FIFO
 const totalPaginasCola = computed(() => Math.ceil(pedidos.value.length / itemsPorPaginaCola) || 1)
 const pedidosPaginados = computed(() => {
   const inicio = (paginaCola.value - 1) * itemsPorPaginaCola
@@ -77,7 +72,7 @@ const despacharSiguiente = async () => {
   }
 }
 
-// --- CANCELACIÓN SEGURA ---
+// Cancelación
 const solicitarEliminacion = (id) => modalEliminar.value = { mostrar: true, id }
 const confirmarEliminacion = async () => {
   const id = modalEliminar.value.id
@@ -102,7 +97,7 @@ const manejarTeclado = (e) => {
   if (e.key === 'Enter') confirmarEliminacion()
 }
 
-// --- LÓGICA DEL BUSCADOR RÁPIDO (Panel) ---
+// Logica del buscador rapido
 const componentesFiltrados = computed(() => {
   return componentes.value.filter(c => 
     c.nombre.toLowerCase().includes(busquedaComponente.value.toLowerCase()) ||
@@ -118,7 +113,7 @@ const componentesPaginados = computed(() => {
 watch(busquedaComponente, () => { paginaPanel.value = 1 })
 
 const seleccionarComponente = (comp) => {
-  if (comp.stock <= 0) return // No dejar seleccionar si no hay stock
+  if (comp.stock <= 0) return
   componenteSeleccionado.value = componenteSeleccionado.value?.id === comp.id ? null : comp
   cantidadAPedir.value = 1
 }

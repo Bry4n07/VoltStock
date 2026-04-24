@@ -6,7 +6,7 @@ from .models import Categoria, Componente, Pedido, Devolucion, HistorialMovimien
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'first_name', 'is_staff']
+        fields = ['id', 'username', 'password', 'first_name', 'is_staff', 'is_superuser']
         extra_kwargs = { 'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -16,6 +16,9 @@ class UserSerializer(serializers.ModelSerializer):
                 first_name=validated_data.get('first_name', ''),
                 is_staff=validated_data.get('is_staff', False)
         )
+        if validated_data.get('is_superuser', False):
+            user.is_superuser = True
+            user.save()
         return user
 
 class ChangePasswordSerializer(serializers.Serializer):

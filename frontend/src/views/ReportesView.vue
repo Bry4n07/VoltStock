@@ -14,7 +14,7 @@ import {
 
 const historial = ref([])
 const cargando = ref(true)
-const generandoPDF = ref(false) // Nuevo estado para proteger la UI
+const generandoPDF = ref(false)
 const { showToast } = useToast()
 
 // Filtros y Paginación
@@ -38,12 +38,11 @@ const cargarHistorial = async () => {
   }
 }
 
-// --- LÓGICA DE FILTRADO ---
+// Logica de Filtrado
 const historialFiltrado = computed(() => {
   return historial.value.filter(item => {
     const coincideTipo = filtroTipo.value === '' || item.tipo === filtroTipo.value
-    const coincideTexto = item.componente_nombre.toLowerCase().includes(busquedaGeneral.value.toLowerCase()) ||
-                         item.usuario_nombre.toLowerCase().includes(busquedaGeneral.value.toLowerCase())
+    const coincideTexto = item.componente_nombre.toLowerCase().includes(busquedaGeneral.value.toLowerCase()) || item.usuario_nombre.toLowerCase().includes(busquedaGeneral.value.toLowerCase())
     const coincideFecha = fechaFiltro.value === '' || item.fecha.startsWith(fechaFiltro.value)
     return coincideTipo && coincideTexto && coincideFecha
   })
@@ -57,7 +56,7 @@ const historialPaginado = computed(() => {
 
 watch([busquedaGeneral, filtroTipo, fechaFiltro], () => { paginaActual.value = 1 })
 
-// --- ESTADÍSTICAS ---
+// Estadisticas
 const stats = computed(() => {
   const datos = historialFiltrado.value 
   const salidas = datos.filter(h => h.tipo === 'SALIDA').length
@@ -74,7 +73,7 @@ const stats = computed(() => {
   return { total: datos.length, salidas, entradas, topComponente }
 })
 
-// --- EXPORTAR A PDF (PROTEGIDO) ---
+// Exportar PDF
 const generarPDF = async () => {
   if (historialFiltrado.value.length === 0) {
     return showToast("No hay datos para exportar", "error")
@@ -82,15 +81,14 @@ const generarPDF = async () => {
 
   let datosAExportar = historialFiltrado.value
 
-  // LÍMITE DE SEGURIDAD PARA EVITAR QUE EL NAVEGADOR EXPLOTE
-  if (datosAExportar.length > 1000) {
+  // Limite de Seguridad
+  if (datosAExportar.length > 500) {
     showToast("Reporte muy grande. Exportando los últimos 1000 registros por seguridad. Usa filtros para el resto.", "info")
     datosAExportar = datosAExportar.slice(0, 1000)
   }
 
   generandoPDF.value = true
 
-  // Truco: Hacemos una pausa de 100ms para permitir que Vue dibuje el spinner en el botón antes de que jsPDF bloquee el procesador
   await new Promise(resolve => setTimeout(resolve, 100))
 
   try {
@@ -123,7 +121,7 @@ const generarPDF = async () => {
       head: [columnas],
       body: filas,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: 255 }, // Color Indigo para la tabla
+      headStyles: { fillColor: [79, 70, 229], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 250, 252] }, 
       styles: { fontSize: 9, cellPadding: 3 },
     })

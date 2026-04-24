@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework import status
+from django.http import JsonResponse
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework import generics
@@ -20,7 +21,7 @@ class RegisterView(generics.CreateAPIView):
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request, *args, **kwargs):
+    def put(self, request):
         user = request.user
         serializer = ChangePasswordSerializer(data=request.data)
 
@@ -35,6 +36,51 @@ class ChangePasswordView(APIView):
             return Response ({"detail": "¡Contraseña actualizada con éxito!"}, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=400)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listar_usuarios(request):
+    if not request.user.is_superuser:
+        return Response({"error": "No tienes permisos."}, status=status.HTTP_403_FORBIDDEN)
+    # Traemos los usuarios y los convertimos a una lista de diccionarios
+    usuarios = list(User.objects.all().values('id', 'username', 'first_name', 'is_staff', 'is_superuser', 'is_active'))
+    # Usamos JsonResponse con safe=False para permitir que se envíe una lista directamente
+    return JsonResponse(usuarios, safe=False)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def actualizar_usuario(request, pk):
+    if not request.user.is_superuser:
+        return Response({"error": "No tienes permisos."}, status=status.HTTP_403_FORBIDDEN)
+        
+    try:
+        user = User.objects.get(pk=pk)
+    except User.DoesNotExist:
+        return Response({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    data = request.data
+    
+    if 'is_active' in data:
+        if user == request.user and not data['is_active']:
+            return Response({"error": "No puedes desactivar tu propia cuenta."}, status=status.HTTP_400_BAD_REQUEST)
+        user.is_active = data['is_active']
+        
+    if 'rol' in data:
+        if data['rol'] == 'admin':
+            user.is_staff = True
+            user.is_superuser = True
+        elif data['rol'] == 'operador':
+            user.is_staff = True
+            user.is_superuser = False
+        elif data['rol'] == 'auditor':
+            user.is_staff = False
+            user.is_superuser = False
+
+    if 'password' in data and data['password'] != '':
+        user.set_password(data['password'])
+
+    user.save()
+    return Response({"mensaje": "Usuario actualizado exitosamente."})
     
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -142,7 +188,7 @@ def gestion_pedidos(request):
         return Response(serializer.errors, status=400)
     
     elif request.method == 'DELETE':
-        # NUEVO: Lógica para CANCELAR un pedido sin alterar el stock
+        # Lógica para candelar un pedido sin alterar el stock
         cancelar_id = request.data.get('cancelar_id')
         if cancelar_id:
             try:
@@ -152,14 +198,13 @@ def gestion_pedidos(request):
             except Pedido.DoesNotExist:
                 return Response({"error": "No encontrado"}, status=404)
 
-        # LÓGICA ORIGINAL FIFO (Despachar el primero y restar stock)
+        # Logica FIFO
         primer_pedido = Pedido.objects.all().order_by('fecha_solicitud').first()
         if primer_pedido:
             componente = primer_pedido.componente
             cantidad_a_restar = getattr(primer_pedido, 'cantidad', 1) 
             
             if componente.stock >= cantidad_a_restar:
-                # Guardar auditoría
                 HistorialMovimiento.objects.create(
                     componente_nombre=componente.nombre,
                     usuario_nombre=request.user.get_full_name() or request.user.username,
@@ -191,7 +236,7 @@ def gestion_devoluciones(request):
         return Response(serializer.errors, status=400)
         
     elif request.method == 'DELETE':
-        # NUEVO: Si el frontend manda un ID específico para CANCELAR
+        # Si el frontend manda un ID específico para cancelar
         cancelar_id = request.data.get('cancelar_id')
         if cancelar_id:
             try:
@@ -201,12 +246,11 @@ def gestion_devoluciones(request):
             except Devolucion.DoesNotExist:
                 return Response({"error": "No encontrado"}, status=404)
 
-        # LÓGICA ORIGINAL LIFO (Si no hay cancelar_id, procesa la cima y suma el stock)
+        # Logica LIFO
         ultima_devolucion = Devolucion.objects.all().order_by('-fecha_devolucion').first()
         if ultima_devolucion:
             componente = ultima_devolucion.componente
             cantidad_a_sumar = getattr(ultima_devolucion, 'cantidad', 1)
-            
             # Guardar en historial
             HistorialMovimiento.objects.create(
                 componente_nombre=componente.nombre,

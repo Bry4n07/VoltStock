@@ -18,34 +18,28 @@ const cargando = ref(true)
 const procesando = ref(false)
 const mostrarPanel = ref(false)
 const { showToast } = useToast()
-
 const despachoSeleccionado = ref(null)
 const cantidadARetornar = ref(1)
-
 // Estado del Modal de Eliminación
 const modalEliminar = ref({ mostrar: false, id: null })
 
-// --- SISTEMA DE TRACKING DE INTEGRIDAD (Anti-Inflación) ---
-// Guardamos en la memoria del navegador lo que ya se procesó para llevar la cuenta
+// Sistema Anti Inflación
 const historicoRetornos = ref(JSON.parse(localStorage.getItem('voltstock_historial_retornos')) || {})
 
 const getCantidadDisponible = (d) => {
-    // 1. ¿Cuánto se ha procesado y sumado al inventario?
     const procesado = historicoRetornos.value[d.id] || 0
-    // 2. ¿Cuánto está ahorita en la pila esperando?
     const enPila = devoluciones.value
         .filter(dev => dev.motivo?.includes(`[REF:${d.id}]`))
         .reduce((sum, dev) => sum + dev.cantidad, 0)
 
-    // 3. El saldo real
     return d.cantidad - procesado - enPila
 }
 
-// --- Paginación PILA ---
+// Paginación PILA
 const paginaPila = ref(1)
 const itemsPorPaginaPila = 6
 
-// --- Paginación y Filtros PANEL ---
+// Paginación y Filtros PANEL
 const busquedaPanel = ref('')
 const fechaPanel = ref('')
 const paginaPanel = ref(1)
@@ -148,7 +142,7 @@ watch([busquedaPanel, fechaPanel], () => { paginaPanel.value = 1 })
 
 const seleccionarDespacho = (despacho) => {
     const disponible = getCantidadDisponible(despacho)
-    if (disponible <= 0) return // Bloqueado
+    if (disponible <= 0) return
 
     despachoSeleccionado.value = despachoSeleccionado.value?.id === despacho.id ? null : despacho
     cantidadARetornar.value = 1
@@ -204,11 +198,11 @@ const manejarTeclado = (e) => {
 
 onMounted(() => {
     cargarDatos()
-    window.addEventListener('keydown', manejarTeclado) // Escuchar teclado
+    window.addEventListener('keydown', manejarTeclado)
 })
 
 onUnmounted(() => {
-    window.removeEventListener('keydown', manejarTeclado) // Limpiar al salir de la vista
+    window.removeEventListener('keydown', manejarTeclado)
 })
 
 onMounted(cargarDatos)

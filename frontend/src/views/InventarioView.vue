@@ -13,7 +13,7 @@ import {
   PencilSquareIcon, TrashIcon, MapPinIcon
 } from '@heroicons/vue/24/outline'
 
-// --- ESTADO ---
+// Estado
 const componentes = ref([])
 const categorias = ref([])
 const cargando = ref(true)
@@ -37,10 +37,12 @@ const paginaActual = ref(1)
 const itemsPorPagina = 8
 const { showToast } = useToast()
 
+const rolUsuario = ref(localStorage.getItem('user_rol') || 'auditor')
+
 const nuevoProducto = ref({ id: null, nombre: '', descripcion: '', stock: 0, categoria: '', codigo_interno: '', ubicacion: '' })
 const nuevaCatForm = ref({ nombre: '' })
 
-// --- COMPUTED ---
+// Computed
 const componentesFiltrados = computed(() => {
   return componentes.value.filter(item => {
     const matchNom = item.nombre.toLowerCase().includes(busqueda.value.toLowerCase())
@@ -69,9 +71,10 @@ const stats = computed(() => ({
   agotados: componentes.value.filter(i => i.stock === 0).length
 }))
 
+// Watch
 watch([busqueda, filtroCategoria, filtroStock], () => { paginaActual.value = 1 })
 
-// --- LÓGICA DE MODALES ---
+// Logica de Modales
 const manejarEsc = (e) => {
   if (e.key === 'Escape') {
     if (mostrarModal.value) cerrarModal()
@@ -114,7 +117,7 @@ const confirmarEliminacion = (id) => {
   mostrarModalEliminar.value = true
 }
 
-// --- API CRUD ---
+// API CRUD
 const obtenerDatos = async () => {
   cargando.value = true
   try {
@@ -184,7 +187,7 @@ const ejecutarEliminacion = async () => {
   }
 }
 
-// --- EMISIONES PARA LA COLA Y PILA ---
+// Emisore para Pila y Cola
 const emit = defineEmits(['solicitar', 'devolver'])
 
 const confirmarTransaccion = async () => {
@@ -331,7 +334,7 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
                 <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">ID.Ref</th>
                 <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Componente</th>
                 <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado Inventario</th>
-                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
+                <th v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-50">
@@ -364,7 +367,7 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4 align-middle">
+                <td v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="px-6 py-4 text-right whitespace-nowrap">>
                   <div class="flex items-center justify-end gap-2">
                     <button @click="abrirModalTransaccion(item, 'extraer')" :disabled="item.stock === 0"
                       class="p-2 bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed" title="Extraer">
@@ -410,11 +413,11 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
               </div>
             </div>
             
-            <div class="flex gap-2 pl-12 mt-2">
+            <div v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="mt-4 flex justify-end gap-2">
               <button @click="abrirModalTransaccion(item, 'extraer')" :disabled="item.stock === 0" class="flex-1 py-2 bg-indigo-50/80 text-indigo-700 rounded-xl text-[11px] font-bold"><ArrowUpOnSquareIcon class="w-3.5 h-3.5 inline mr-1" /> Extraer</button>
               <button @click="abrirModalTransaccion(item, 'ingresar')" class="flex-1 py-2 bg-emerald-50/80 text-emerald-700 rounded-xl text-[11px] font-bold"><ArrowDownTrayIcon class="w-3.5 h-3.5 inline mr-1" /> Devolver</button>
             </div>
-            <div class="flex gap-2 pl-12">
+            <div v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="mt-4 flex justify-end gap-2">
               <button @click="abrirModalEditar(item)" class="flex-1 py-1.5 border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold"><PencilSquareIcon class="w-3.5 h-3.5 inline mr-1" /> Editar</button>
               <button @click="confirmarEliminacion(item.id)" class="flex-1 py-1.5 border border-red-100 text-red-600 hover:bg-red-50 rounded-xl text-[11px] font-bold transition-colors"><TrashIcon class="w-3.5 h-3.5 inline mr-1" /> Eliminar</button>
             </div>

@@ -1,9 +1,8 @@
 import { ref } from 'vue'
-
-// Estado global (fuera de la función para que se comparta en toda la app)
+// Estado global
 const toastShow = ref(false)
 const toastMessage = ref('')
-const toastType = ref('success') // 'success' o 'error'
+const toastType = ref('success')
 let timeoutId = null
 
 export function useToast() {
@@ -14,7 +13,6 @@ export function useToast() {
         toastMessage.value = msg
         toastType.value = type
         toastShow.value = true
-
         // Se oculta solo a los 3.5 segundos
         timeoutId = setTimeout(() => {
             toastShow.value = false

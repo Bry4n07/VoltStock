@@ -42,23 +42,21 @@ const fechaActual = computed(() => {
 const cargarDashboard = async () => {
   cargando.value = true
   try {
-    // 1. Intentar obtener el nombre del usuario (Desde LocalStorage o API)
-    // Ajusta la ruta 'auth/me/' a la que uses en tu backend de Django
     const localName = localStorage.getItem('user_name')
     if (localName) {
       nombreUsuario.value = localName
     } else {
       try {
-        const resUser = await api('auth/me/') // Endpoint ficticio/común de usuario
+        const resUser = await api('auth/me/')
         if (resUser.ok) {
           const userData = await resUser.json()
           nombreUsuario.value = userData.first_name || userData.username || 'Ingeniero'
-          localStorage.setItem('user_name', nombreUsuario.value) // Guardar para la próxima
+          localStorage.setItem('user_name', nombreUsuario.value)
         }
       } catch (e) { /* Silencioso si no existe el endpoint aún */ }
     }
 
-    // 2. Cargar las métricas
+    //Carga de mtricas
     const [resComp, resPed, resDev, resHist] = await Promise.all([
       api('componentes/'),
       api('pedidos/'),
