@@ -427,10 +427,6 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
               @cambiarPagina="p => paginaActual = p" 
           />
         </div>
-        <div v-if="cargando" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm rounded-[24px]">
-          <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-100 border-t-indigo-600 mb-3"></div>
-          <p class="text-sm font-bold text-slate-500 animate-pulse">Cargando inventario...</p>
-        </div>
       </div>
     </div>
     <transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="opacity-0 translate-y-8" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200 ease-in" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-8">

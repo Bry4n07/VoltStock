@@ -180,19 +180,14 @@ onUnmounted(() => window.removeEventListener('keydown', manejarTeclado))
           </div>
           <div class="flex items-center gap-2 w-full sm:w-auto">
             <button @click="mostrarPanel = !mostrarPanel" 
-                    :class="['flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all',
-                             mostrarPanel ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700']">
+                    :class="['flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all', mostrarPanel ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700']">
               <PlusCircleIcon class="w-5 h-5" />
               <span>{{ mostrarPanel ? 'Cerrar Buscador' : 'Nuevo Pedido' }}</span>
             </button>
           </div>
         </header>
 
-        <div v-if="cargando" class="flex justify-center py-20 bg-white rounded-[24px] border border-slate-100">
-          <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-100 border-t-indigo-600"></div>
-        </div>
-
-        <div v-else-if="pedidos.length === 0" class="bg-white rounded-[24px] border-2 border-dashed border-slate-200 p-10 sm:p-16 text-center shadow-sm">
+        <div v-if="pedidos.length === 0" class="bg-white rounded-[24px] border-2 border-dashed border-slate-200 p-10 sm:p-16 text-center shadow-sm">
           <CheckCircleIcon class="w-14 h-14 text-indigo-300 mx-auto mb-4" />
           <h3 class="text-lg sm:text-xl font-black text-slate-800 mb-2">Cola Vacía</h3>
           <p class="text-slate-500 text-sm">No hay entregas pendientes. Usa el panel para crear una rápida.</p>
@@ -201,7 +196,7 @@ onUnmounted(() => window.removeEventListener('keydown', manejarTeclado))
         <div v-else class="flex flex-col gap-0 items-center">
           <transition-group name="cola" tag="div" class="w-full relative flex flex-col space-y-3 sm:space-y-4">
             <div v-for="(pedido, index) in pedidosPaginados" :key="pedido.id" 
-                 :class="['w-full bg-white p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] shadow-sm border transition-all duration-500 flex flex-col sm:flex-row gap-4 sm:items-center justify-between',
+                :class="['w-full bg-white p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] shadow-sm border transition-all duration-500 flex flex-col sm:flex-row gap-4 sm:items-center justify-between',
                           index === 0 && paginaCola === 1 ? 'border-indigo-300 ring-4 ring-indigo-50 shadow-lg scale-100' : 'border-slate-200 opacity-95 scale-[0.98]']">
               
               <div class="flex items-start sm:items-center gap-3 sm:gap-4">

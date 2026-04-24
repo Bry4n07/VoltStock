@@ -270,11 +270,6 @@ onMounted(cargarHistorial)
         <div v-if="historialFiltrado.length > 0" class="px-6 py-4 border-t border-slate-50 flex justify-center bg-white">
           <Paginacion :paginaActual="paginaActual" :totalPaginas="totalPaginas" @cambiarPagina="p => paginaActual = p" />
         </div>
-
-        <div v-if="cargando" class="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-20">
-          <div class="animate-spin rounded-full h-8 w-8 border-2 border-indigo-100 border-t-indigo-600"></div>
-        </div>
-        
       </div>
     </div>
   </div>

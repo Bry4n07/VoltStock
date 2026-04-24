@@ -249,13 +249,7 @@ onMounted(cargarDatos)
                     </div>
                 </header>
 
-                <div v-if="cargando" class="flex justify-center py-20 bg-white rounded-[24px] border border-slate-100">
-                    <div
-                        class="animate-spin rounded-full h-12 w-12 border-4 border-emerald-100 border-t-emerald-600 mb-3">
-                    </div>
-                </div>
-
-                <div v-else-if="devoluciones.length === 0"
+                <div v-if="devoluciones.length === 0"
                     class="bg-white rounded-[24px] border-2 border-dashed border-slate-200 p-16 text-center shadow-sm">
                     <CheckCircleIcon class="w-14 h-14 text-emerald-300 mx-auto mb-4" />
                     <h3 class="text-xl font-black text-slate-800 mb-2">Pila Vacía</h3>

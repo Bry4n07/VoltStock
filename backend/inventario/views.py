@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
@@ -35,6 +35,24 @@ class ChangePasswordView(APIView):
             return Response ({"detail": "¡Contraseña actualizada con éxito!"}, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=400)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_usuario_actual(request):
+    rol = "auditor" 
+    
+    if request.user.is_superuser:
+        rol = "admin"
+    elif request.user.is_staff:
+        rol = "tecnico"
+        
+    return Response({
+        "username": request.user.username,
+        "rol": rol,
+        "first_name": request.user.first_name,
+        "is_staff": request.user.is_staff,
+        "is_superuser": request.user.is_superuser,
+    })
 
 @api_view(['GET', 'POST'])
 def lista_categorias(request):

@@ -115,35 +115,28 @@ onMounted(cargarDashboard)
     
     <div class="max-w-[1400px] mx-auto space-y-6">
       
-      <header class="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 sm:p-8 rounded-[28px] shadow-sm border border-slate-100 relative overflow-hidden">
-        <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-50 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
+      <header class="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 sm:p-8 rounded-[32px] shadow-sm border border-slate-100">
         
-        <div class="relative z-10">
-          
-          <div class="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black tracking-widest uppercase mb-3 shadow-sm">
-            <span class="relative flex h-2.5 w-2.5">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            VoltStock • En Línea
-          </div>
-
+        <div>
           <h1 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
             {{ saludo }}, <span class="text-indigo-600 capitalize">{{ nombreUsuario }}</span>
           </h1>
-          <p class="text-slate-500 text-sm font-medium mt-1 capitalize">{{ fechaActual }}</p>
+          <p class="text-slate-500 text-sm font-medium mt-1.5 flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {{ fechaActual }}
+          </p>
         </div>
+        
 
-        <button @click="cargarDashboard" class="relative z-10 p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group">
-          <ArrowPathIcon :class="['w-5 h-5 text-slate-400 group-hover:text-indigo-600', cargando ? 'animate-spin text-indigo-600' : '']" />
+        <button @click="cargarDashboard" class="p-3.5 bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-100 rounded-2xl transition-all group shadow-sm flex-shrink-0">
+          <ArrowPathIcon class="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
         </button>
+
       </header>
 
-      <div v-if="cargando" class="flex justify-center py-20">
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-100 border-t-indigo-600"></div>
-      </div>
-
-      <div v-else class="space-y-6">
+      <div class="space-y-6">
         
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <div @click="navegarA('/inventario')" class="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">

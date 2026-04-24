@@ -6,7 +6,8 @@ import {
     Cog6ToothIcon, ArrowRightOnRectangleIcon, BoltIcon,
     ArrowUturnUpIcon, UserPlusIcon, XMarkIcon, BellIcon, ShieldCheckIcon,
     LockClosedIcon, EyeIcon, EyeSlashIcon,
-    CheckCircleIcon, ExclamationCircleIcon, ChartBarIcon, DocumentChartBarIcon
+    CheckCircleIcon, ExclamationCircleIcon, ChartBarIcon, DocumentChartBarIcon, HomeIcon, ArchiveBoxIcon, QueueListIcon,
+    Square3Stack3DIcon
 } from '@heroicons/vue/24/outline'
 
 import { useToast } from '../composables/useToast'
@@ -42,6 +43,23 @@ const handleKeydown = (e) => {
         }
     }
 }
+
+const rolUsuario = ref(localStorage.getItem('user_rol') || 'auditor') // Auditor por defecto si falla algo
+
+// Lista de navegación con lógica de permisos de 3 roles
+const navegacion = [
+    { nombre: 'Dashboard', ruta: '/dashboard', icono: HomeIcon, mostrar: true },
+    { nombre: 'Inventario', ruta: '/inventario', icono: ArchiveBoxIcon, mostrar: true }, // Todos ven el inventario
+
+    // La Cola y Pila la ven los Técnicos y el Admin
+    { nombre: 'Cola Despacho', ruta: '/cola', icono: QueueListIcon, mostrar: rolUsuario.value === 'admin' || rolUsuario.value === 'tecnico' },
+    { nombre: 'Pila Retornos', ruta: '/pila', icono: Square3Stack3DIcon, mostrar: rolUsuario.value === 'admin' || rolUsuario.value === 'tecnico' },
+
+    { nombre: 'Reportes', ruta: '/reportes', icono: ChartBarIcon, mostrar: true }, // Todos ven reportes
+
+    // Solo el Admin registra usuarios
+    { nombre: 'Registrar Staff', ruta: '/register', icono: UserPlusIcon, mostrar: rolUsuario.value === 'admin' },
+]
 
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown)
@@ -416,7 +434,8 @@ const cambiarPassword = async () => {
                             <ExclamationCircleIcon v-else class="w-6 h-6 text-red-500" />
                         </div>
                         <div class="flex-1 pt-0.5">
-                            <p class="text-sm font-bold text-slate-800">{{ toastType === 'success' ? 'Éxito' :'Atención' }}</p>
+                            <p class="text-sm font-bold text-slate-800">{{ toastType === 'success' ? 'Éxito' : 'Atención'
+                                }}</p>
                             <p class="mt-1 text-sm text-slate-500 leading-snug">{{ toastMessage }}</p>
                         </div>
                     </div>
