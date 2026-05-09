@@ -42,7 +42,10 @@ class CategoriaSerializer(serializers.ModelSerializer):
 class ComponenteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Componente
-        fields = '__all__'
+        fields = [
+            'id', 'nombre', 'descripcion', 'stock', 'categoria', 
+            'codigo_interno', 'ubicacion', 'precio_compra_promedio', 'precio_venta'
+        ]
         
 class PedidoSerializer(serializers.ModelSerializer):
     class Meta:

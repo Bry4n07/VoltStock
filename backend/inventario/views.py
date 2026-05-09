@@ -271,3 +271,34 @@ def obtener_historial(request):
     movimientos = HistorialMovimiento.objects.all().order_by('-fecha')
     serializer = HistorialMovimientoSerializer(movimientos, many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+#@permission_classes([IsAuthenticated])
+def registrar_entrada_stock(request, id):
+    try:
+        componente = Componente.objects.get(id=id)
+    except Componente.DoesNotExist:
+        return Response({"error": "Componente no encontrado"}, status=404)
+    
+    cantidad = request.data.get('cantidad')
+    costo = request.data.get('costo')
+    
+    if cantidad is None or costo is None:
+        return Response({"error": "Faltan enviar los parámetros 'cantidad' o 'costo'"}, status=400)
+        
+    try:
+        componente.registrar_entrada(cantidad, costo)
+        
+        usuario_nombre = request.user.get_full_name() or request.user.username if request.user.is_authenticated else 'Sistema'
+        HistorialMovimiento.objects.create(
+            componente_nombre=componente.nombre,
+            usuario_nombre=usuario_nombre,
+            cantidad=int(cantidad),
+            tipo='ENTRADA'
+        )
+        
+        serializer = ComponenteSerializer(componente)
+        return Response(serializer.data, status=200)
+    except ValueError:
+        return Response({"error": "La cantidad y el costo deben ser valores numéricos válidos"}, status=400)

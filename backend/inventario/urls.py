@@ -15,4 +15,5 @@ urlpatterns = [
     path('pedidos/', views.gestion_pedidos, name='Pedido_cola'),
     path('devoluciones/', views.gestion_devoluciones, name='Devolucion_pila'),
     path('historial/', views.obtener_historial, name='obtener_historial'),
+    path('componentes/<int:id>/entrada/', views.registrar_entrada_stock, name='registrar_entrada_stock'),
 ]

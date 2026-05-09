@@ -16,11 +16,28 @@ class Componente(models.Model):
     codigo_interno = models.CharField(max_length=50, unique=True, blank=True, null=True, help_text="Ej: RES-001")
     ubicacion = models.CharField(max_length=100, blank=True, null=True, help_text="Ej: Estante A, Gaveta 3")
     fecha_ingreso = models.DateTimeField(auto_now_add=True)
+    precio_compra_promedio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Costo Promedio ponderado de adquisición")
+    precio_venta = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Precio al que se vende al publico")
+    #precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Costo de ingreso")
     
     def __str__(self):
         if self.codigo_interno:
             return f"[{self.codigo_interno}] {self.nombre} - Stock: {self.stock}"
         return f"{self.nombre} - Stock: {self.stock}"
+    
+    def registrar_entrada(self, cantidad_nueva, costo_nuevo):
+        cantidad_nueva = int(cantidad_nueva)
+        costo_nuevo = float(costo_nuevo)
+        
+        if self.stock + cantidad_nueva > 0: 
+            total_invertido_actual = float(self.stock) * float(self.precio_compra_promedio)
+            total_inversion_nueva = cantidad_nueva * costo_nuevo
+            
+            nuevo_promedio = (total_invertido_actual + total_inversion_nueva) / (self.stock + cantidad_nueva)
+            
+            self.precio_compra_promedio = nuevo_promedio
+            self.stock += cantidad_nueva
+            self.save()
 
 class Pedido(models.Model):
     componente = models.ForeignKey(Componente, on_delete=models.CASCADE)

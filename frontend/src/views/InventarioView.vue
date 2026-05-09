@@ -25,6 +25,10 @@ const filtroStock = ref('')
 const mostrarModal = ref(false)
 const mostrarModalEliminar = ref(false)
 const idAEliminar = ref(null)
+const abrirModalEntrada = (item) => {
+  datosEntrada.value = { id: item.id, nombre: item.nombre, cantidad: 1, costo: item.precio_compra_promedio }
+  modalEntradaStock.value = true
+}
 
 const tipoFormulario = ref('componente')
 
@@ -32,14 +36,15 @@ const mostrarModalTransaccion = ref(false)
 const tipoTransaccion = ref('')
 const itemSeleccionado = ref(null)
 const cantidadTransaccion = ref(1)
+const modalEntradaStock = ref(false)
+const datosEntrada = ref({ id: null, nombre: '', cantidad: 1, costo: 0 })
 
 const paginaActual = ref(1)
 const itemsPorPagina = 8
 const { showToast } = useToast()
 
 const rolUsuario = ref(localStorage.getItem('user_rol') || 'auditor')
-
-const nuevoProducto = ref({ id: null, nombre: '', descripcion: '', stock: 0, categoria: '', codigo_interno: '', ubicacion: '' })
+const nuevoProducto = ref({ id: null, nombre: '', descripcion: '', stock: 0, categoria: '', codigo_interno: '', ubicacion: '', precio_compra_promedio: 0, precio_venta: 0 })
 const nuevaCatForm = ref({ nombre: '' })
 
 // Computed
@@ -169,6 +174,27 @@ const guardarRegistro = async () => {
     }
   } catch (err) { 
     if (err !== 'Sesión expirada') showToast("Error de conexión", "error") 
+  }
+}
+
+const confirmarEntrada = async () => {
+  try {
+    const res = await api(`componentes/${datosEntrada.value.id}/entrada/`, {
+      method: 'POST',
+      body: JSON.stringify({
+        cantidad: datosEntrada.value.cantidad,
+        costo: datosEntrada.value.costo
+      })
+    })
+    if (res.ok) {
+      modalEntradaStock.value = false
+      showToast("Stock y precios actualizados", "success")
+      await obtenerDatos()
+    } else {
+      showToast("Error al procesar", "error")
+    }
+  } catch (error) {
+    if (error !== 'Sesión expirada') showToast("Error de conexión", "error")
   }
 }
 
@@ -333,7 +359,8 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
               <tr class="border-b border-slate-100 bg-slate-50/30">
                 <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32">ID.Ref</th>
                 <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Componente</th>
-                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado Inventario</th>
+                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Stock</th>
+                <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Precios (Q)</th>
                 <th v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones</th>
               </tr>
             </thead>
@@ -352,44 +379,47 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
                     </div>
                     <div>
                       <p class="font-bold text-slate-800 text-sm">{{ item.nombre }}</p>
-                      <p class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{{ item.descripcion || 'Sin descripción.' }}</p>
-                      <p v-if="item.ubicacion" class="text-[10px] text-indigo-500 font-bold mt-1 flex items-center gap-1"><MapPinIcon class="w-3 h-3" /> {{ item.ubicacion }}</p>
+                      <p v-if="item.ubicacion" class="text-[10px] text-indigo-500 font-bold mt-0.5 flex items-center gap-1"><MapPinIcon class="w-3 h-3" /> {{ item.ubicacion }}</p>
                     </div>
                   </div>
                 </td>
                 <td class="px-6 py-4 align-middle text-center">
-                  <div class="flex justify-center">
-                    <div :class="['inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold',
-                        item.stock > 10 ? 'bg-emerald-50 text-emerald-700' :
-                        item.stock > 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700']">
-                      <div :class="['w-1.5 h-1.5 rounded-full', item.stock > 10 ? 'bg-emerald-500' : item.stock > 0 ? 'bg-amber-500' : 'bg-red-500']"></div>
-                      {{ item.stock }} UDS.
-                    </div>
+                  <div :class="['inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold',
+                      item.stock > 10 ? 'bg-emerald-50 text-emerald-700' :
+                      item.stock > 0 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700']">
+                    {{ item.stock }} UDS.
                   </div>
                 </td>
-                <td v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="px-6 py-4 text-right whitespace-nowrap">>
-                  <div class="flex items-center justify-end gap-2">
-                    <button @click="abrirModalTransaccion(item, 'extraer')" :disabled="item.stock === 0"
-                      class="p-2 bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed" title="Extraer">
-                      <ArrowUpOnSquareIcon class="w-4 h-4" />
-                    </button>
-                    <button @click="abrirModalTransaccion(item, 'ingresar')"
-                      class="p-2 bg-white border border-slate-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 rounded-lg transition-all" title="Ingresar/Devolver">
-                      <ArrowDownTrayIcon class="w-4 h-4" />
-                    </button>
-                    <div class="w-px h-6 bg-slate-200 mx-1"></div>
-                    <button @click="abrirModalEditar(item)"
-                      class="p-2 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-lg transition-all" title="Editar">
-                      <PencilSquareIcon class="w-4 h-4" />
-                    </button>
-                    <button @click="confirmarEliminacion(item.id)"
-                      class="p-2 bg-white border border-slate-200 text-red-500 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all" title="Eliminar">
-                      <TrashIcon class="w-4 h-4" />
-                    </button>
+                <td class="px-6 py-4 align-middle text-center">
+                  <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-slate-400 font-bold">Costo: <b class="text-slate-700">Q{{ item.precio_compra_promedio }}</b></span>
+                    <span class="text-[10px] text-slate-400 font-bold">Venta: <b class="text-indigo-600">Q{{ item.precio_venta }}</b></span>
                   </div>
                 </td>
-              </tr>
-            </tbody>
+                <td v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="px-6 py-4 text-right whitespace-nowrap">
+                  <div class="flex items-center justify-end gap-1.5">
+            
+            <button @click="abrirModalTransaccion(item, 'extraer')" :disabled="item.stock === 0" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all disabled:opacity-30" title="Extraer para Préstamo">
+              <ArrowUpOnSquareIcon class="w-4 h-4" />
+            </button>
+            
+            <button @click="abrirModalEntrada(item)" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Registrar Compra Nueva">
+              <PlusIcon class="w-4 h-4" />
+            </button>
+            
+            <div class="w-px h-6 bg-slate-200 mx-1"></div>
+            
+            <button @click="abrirModalEditar(item)" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" title="Editar Información">
+              <PencilSquareIcon class="w-4 h-4" />
+            </button>
+            
+            <button v-if="rolUsuario === 'admin'" @click="confirmarEliminacion(item.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Eliminar Componente">
+              <TrashIcon class="w-4 h-4" />
+            </button>
+          </div>
+          </td>
+          </tr>
+          </tbody>
           </table>
         </div>
 
@@ -407,19 +437,24 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
                       {{ item.stock }} UD
                     </div>
                   </div>
-                  <p class="text-[11px] text-slate-500 mb-2 line-clamp-2 leading-tight">{{ item.descripcion || 'Sin descripción técnica registrada.' }}</p>
+                  
+                  <div class="flex items-center gap-3 mb-2">
+                    <span class="text-[10px] text-slate-500 font-medium">Costo: <b>Q{{ item.precio_compra_promedio }}</b></span>
+                    <span class="text-[10px] text-indigo-600 font-bold">Venta: Q{{ item.precio_venta }}</span>
+                  </div>
+
                   <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md text-xs font-mono font-bold"><TagIcon class="w-3 h-3" /> {{ item.codigo_interno || 'ID-' + item.id.toString().padStart(4, '0') }}</span>
                 </div>
               </div>
             </div>
-            
-            <div v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="mt-4 flex justify-end gap-2">
-              <button @click="abrirModalTransaccion(item, 'extraer')" :disabled="item.stock === 0" class="flex-1 py-2 bg-indigo-50/80 text-indigo-700 rounded-xl text-[11px] font-bold"><ArrowUpOnSquareIcon class="w-3.5 h-3.5 inline mr-1" /> Extraer</button>
-              <button @click="abrirModalTransaccion(item, 'ingresar')" class="flex-1 py-2 bg-emerald-50/80 text-emerald-700 rounded-xl text-[11px] font-bold"><ArrowDownTrayIcon class="w-3.5 h-3.5 inline mr-1" /> Devolver</button>
+            <div v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="mt-3 flex flex-wrap justify-end gap-2">
+              <button @click="abrirModalTransaccion(item, 'extraer')" :disabled="item.stock === 0" class="flex-1 py-2 bg-indigo-50/80 text-indigo-700 rounded-xl text-[11px] font-bold disabled:opacity-50"><ArrowUpOnSquareIcon class="w-3.5 h-3.5 inline mr-1" /> Extraer</button>
+              <button @click="abrirModalEntrada(item)" class="flex-1 py-2 bg-emerald-50/80 text-emerald-700 rounded-xl text-[11px] font-bold"><PlusIcon class="w-3.5 h-3.5 inline mr-1" /> Comprar</button>
             </div>
-            <div v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="mt-4 flex justify-end gap-2">
+            
+            <div v-if="rolUsuario === 'admin' || rolUsuario === 'operador'" class="flex justify-end gap-2">
               <button @click="abrirModalEditar(item)" class="flex-1 py-1.5 border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold"><PencilSquareIcon class="w-3.5 h-3.5 inline mr-1" /> Editar</button>
-              <button @click="confirmarEliminacion(item.id)" class="flex-1 py-1.5 border border-red-100 text-red-600 hover:bg-red-50 rounded-xl text-[11px] font-bold transition-colors"><TrashIcon class="w-3.5 h-3.5 inline mr-1" /> Eliminar</button>
+              <button v-if="rolUsuario === 'admin'" @click="confirmarEliminacion(item.id)" class="flex-1 py-1.5 border border-red-100 text-red-600 hover:bg-red-50 rounded-xl text-[11px] font-bold transition-colors"><TrashIcon class="w-3.5 h-3.5 inline mr-1" /> Eliminar</button>
             </div>
           </div>
         </div>
@@ -446,48 +481,99 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
               <button @click="tipoFormulario = 'componente'" :class="['flex-1 py-2 text-xs font-bold rounded-lg', tipoFormulario === 'componente' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500']">Componente</button>
               <button @click="tipoFormulario = 'categoria'" :class="['flex-1 py-2 text-xs font-bold rounded-lg', tipoFormulario === 'categoria' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500']">Familia</button>
             </div>
-            <form v-if="tipoFormulario === 'componente' || tipoFormulario === 'editar_componente'" @submit.prevent="guardarRegistro" class="space-y-4">
-              <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Nombre</label>
-                <input v-model="nuevoProducto.nombre" type="text" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none focus:border-indigo-300" />
+            <form v-if="tipoFormulario === 'componente' || tipoFormulario === 'editar_componente'" @submit.prevent="guardarRegistro" class="space-y-6">
+  
+            <div class="space-y-4">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                <h4 class="text-[11px] font-black text-slate-700 uppercase tracking-wider">Información General</h4>
               </div>
               <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Descripción</label>
-                <input v-model="nuevoProducto.descripcion" type="text" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none focus:border-indigo-300" />
-              </div>
-              <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Código Interno (SKU)</label>
-                <input v-model="nuevoProducto.codigo_interno" type="text" placeholder="Ej: RES-001" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none focus:border-indigo-300" />
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Nombre del Componente</label>
+                <input v-model="nuevoProducto.nombre" type="text" required placeholder="Ej: Transistor 2N2222" 
+                  class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-medium outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all" />
               </div>
               <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Ubicación Física</label>
-                <input v-model="nuevoProducto.ubicacion" type="text" placeholder="Ej: Estante A" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none focus:border-indigo-300" />
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Descripción Técnica</label>
+                <textarea v-model="nuevoProducto.descripcion" rows="2" placeholder="Especificaciones, pines, etc..."
+                  class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-medium outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all resize-none"></textarea>
               </div>
             </div>
+            
+            <div class="space-y-4">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-1 h-4 bg-amber-500 rounded-full"></div>
+                <h4 class="text-[11px] font-black text-slate-700 uppercase tracking-wider">Ubicación e Inventario</h4>
+              </div>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Stock Inicial</label>
-                  <input v-model="nuevoProducto.stock" type="number" min="0" :disabled="tipoFormulario === 'editar_componente'" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none disabled:opacity-50" />
+                  <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Código (SKU)</label>
+                  <input v-model="nuevoProducto.codigo_interno" type="text" placeholder="RES-001" 
+                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-medium outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all" />
                 </div>
                 <div>
-                  <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Familia</label>
-                  <select v-model="nuevoProducto.categoria" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm outline-none cursor-pointer">
+                  <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Ubicación Física</label>
+                  <input v-model="nuevoProducto.ubicacion" type="text" placeholder="Gaveta A1" 
+                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-medium outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Stock Actual</label>
+                  <input v-model="nuevoProducto.stock" type="number" min="0" required
+                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-black text-indigo-600 outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Familia/Categoría</label>
+                  <select v-model="nuevoProducto.categoria" required 
+                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-medium outline-none cursor-pointer focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all appearance-none">
+                    <option value="" disabled>Seleccionar...</option>
                     <option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
                   </select>
                 </div>
               </div>
-              <div class="pt-4 flex justify-end gap-2">
-                <button type="button" @click="cerrarModal" class="px-5 py-2.5 text-sm font-bold text-slate-500 rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
-                <button type="submit" class="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 active:scale-95 transition-all">{{ tipoFormulario === 'editar_componente' ? 'Actualizar' : 'Guardar' }}</button>
-              </div>
-            </form>
+            </div>
 
-            <form v-else @submit.prevent="guardarRegistro" class="space-y-4">
-              <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nombre de la Familia</label>
-                <input v-model="nuevaCatForm.nombre" type="text" required placeholder="Ej: Resistencias"
-                  class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-medium outline-none focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all" />
+            <div class="p-4 bg-indigo-50/50 rounded-[20px] border border-indigo-100/50 space-y-4">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-1 h-4 bg-emerald-500 rounded-full"></div>
+                <h4 class="text-[11px] font-black text-slate-700 uppercase tracking-wider">Valores Monetarios (Q)</h4>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[10px] font-bold text-indigo-400 uppercase mb-1.5 ml-1">Costo de Compra</label>
+                  <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Q</span>
+                    <input v-model="nuevoProducto.precio_compra_promedio" type="number" step="0.01" min="0" required 
+                      class="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-xl text-sm font-bold outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 transition-all" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-indigo-400 uppercase mb-1.5 ml-1">Precio de Venta</label>
+                  <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Q</span>
+                    <input v-model="nuevoProducto.precio_venta" type="number" step="0.01" min="0" required 
+                      class="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-xl text-sm font-bold outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 flex items-center gap-3">
+              <button type="button" @click="cerrarModal" 
+                class="flex-1 py-3 text-sm font-bold text-slate-500 rounded-xl hover:bg-slate-100 transition-all">
+                Cancelar
+              </button>
+              <button type="submit" 
+                class="flex-[2] py-3 bg-indigo-600 text-white text-sm font-black rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 active:scale-95 transition-all">
+                {{ tipoFormulario === 'editar_componente' ? 'Actualizar Registro' : 'Confirmar y Guardar' }}
+              </button>
+            </div>
+          </form>
+          <form v-else @submit.prevent="guardarRegistro" class="space-y-4">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nombre de la Familia</label>
+              <input v-model="nuevaCatForm.nombre" type="text" required placeholder="Ej: Resistencias" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-sm font-medium outline-none focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all" />
               </div>
               <div class="pt-4 flex justify-end gap-2">
                 <button type="button" @click="cerrarModal" class="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
@@ -552,5 +638,34 @@ onUnmounted(() => window.removeEventListener('keydown', manejarEsc))
       </div>
     </transition>
     
+    <transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="opacity-0 translate-y-8" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200 ease-in" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-8">
+      <div v-if="modalEntradaStock" @mousedown.self="modalEntradaStock = false" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-[24px] shadow-2xl overflow-hidden p-6 text-center">
+          
+          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+            <PlusIcon class="w-8 h-8 text-emerald-600" />
+          </div>
+
+          <h3 class="text-xl font-black text-slate-800 mb-1">Registrar Compra</h3>
+          <p class="text-sm text-slate-500 mb-6 font-bold">{{ datosEntrada.nombre }}</p>
+
+          <div class="text-left space-y-4 mb-6">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">Cantidad Entrante</label>
+              <input v-model="datosEntrada.cantidad" type="number" min="1" required class="w-full text-center text-lg font-black px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">Costo por Unidad (Factura)</label>
+              <input v-model="datosEntrada.costo" type="number" step="0.01" min="0" required class="w-full text-center text-lg font-black px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <button @click="modalEntradaStock = false" class="flex-1 py-3 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">Cancelar</button>
+            <button @click="confirmarEntrada" class="flex-1 py-3 text-white text-sm font-bold bg-emerald-500 hover:bg-emerald-600 rounded-xl shadow-md shadow-emerald-500/20 active:scale-95 transition-all">Confirmar Lote</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
